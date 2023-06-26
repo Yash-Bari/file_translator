@@ -1,0 +1,10 @@
+Algoritmo para predecir el precio de las acciones utilizando el modelo LSTM
+ 
+❖ El código primero solicita al usuario que ingrese un símbolo de cotización y establece las fechas de inicio y finalización para
+los datos que se recopilarán de Yahoo Finance.
+ 
+❖ Los datos históricos del precio de las acciones se extraen de Yahoo Finance utilizando yf.download()
+función del paquete yfinance.
+ 
+❖ Los datos del precio de las acciones se cargan en un marco de datos de pandas y se procesan previamente mediante un
+MinMaxScaler() para escalar los valores entre 0 y 1
