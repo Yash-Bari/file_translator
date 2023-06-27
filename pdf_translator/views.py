@@ -6,11 +6,9 @@ from django.urls import reverse
 from reportlab.pdfgen import canvas
 from django.http import HttpResponse
 from gtts import gTTS
-from pydub import AudioSegment
 from moviepy.editor import VideoFileClip
-import speech_recognition as sr
 from docx import Document
-import tempfile
+
 
 def split_text_by_length(text, length):
     splits = []
@@ -58,12 +56,12 @@ def split_pdf_text_translate(request):
             # Handle video file
             video = VideoFileClip(file_path)
             audio = video.audio
-            duration = 60  # Duration in seconds
-            audio_clip = audio.subclip(0, duration)
             audio_path = os.path.join(output_directory, 'extracted_audio.mp3')
-            audio_clip.write_audiofile(audio_path, fps=22050)  # Adjust the sampling rate as needed
+            audio.write_audiofile(audio_path)
+
             audio_text = audio.to_soundarray()
             text = ''
+            
             for line in audio_text:
                 text += str(line[0])
         elif file.name.endswith('.docx'):
@@ -73,8 +71,7 @@ def split_pdf_text_translate(request):
             text = ''
             for paragraph in paragraphs:
                 text += paragraph.text
-    
-        
+
         splits = split_text_by_length(text, 500)
         num_splits = len(splits)
         output_texts = []
@@ -108,5 +105,6 @@ def split_pdf_text_translate(request):
             'combined_text': combined_text,
             'combined_text_file': combined_text_file,
         })
-
     return render(request, 'index.html')
+    
+
