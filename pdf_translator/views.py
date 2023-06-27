@@ -1,10 +1,16 @@
-from django.shortcuts import render
-from django.urls import reverse
-from django.http import HttpResponse, FileResponse
+import os
 import PyPDF2
 from deep_translator import GoogleTranslator
+from django.shortcuts import render
+from django.urls import reverse
+from reportlab.pdfgen import canvas
+from django.http import HttpResponse
 from gtts import gTTS
-import os
+from pydub import AudioSegment
+from moviepy.editor import VideoFileClip
+import speech_recognition as sr
+from docx import Document
+import tempfile
 
 def split_text_by_length(text, length):
     splits = []
@@ -26,6 +32,7 @@ def translate_text(text, target_language):
 
 
 
+
 def split_pdf_text_translate(request):
     if request.method == 'POST':
         file = request.FILES['file']
@@ -39,13 +46,35 @@ def split_pdf_text_translate(request):
             for chunk in file.chunks():
                 destination.write(chunk)
 
-        pdf = PyPDF2.PdfReader(open(file_path, 'rb'))
-        text = ''
-        num_pages = len(pdf.pages)
-        for page_number in range(num_pages):
-            page = pdf.pages[page_number]
-            text += page.extract_text()
-
+        if file.name.endswith('.pdf'):
+            # Handle PDF file
+            pdf = PyPDF2.PdfReader(open(file_path, 'rb'))
+            text = ''
+            num_pages = len(pdf.pages)
+            for page_number in range(num_pages):
+                page = pdf.pages[page_number]
+                text += page.extract_text()
+        elif file.name.endswith(('.mp4', '.mkv', '.avi')):
+            # Handle video file
+            video = VideoFileClip(file_path)
+            audio = video.audio
+            duration = 60  # Duration in seconds
+            audio_clip = audio.subclip(0, duration)
+            audio_path = os.path.join(output_directory, 'extracted_audio.mp3')
+            audio_clip.write_audiofile(audio_path, fps=22050)  # Adjust the sampling rate as needed
+            audio_text = audio.to_soundarray()
+            text = ''
+            for line in audio_text:
+                text += str(line[0])
+        elif file.name.endswith('.docx'):
+            # Handle DOC file
+            doc = Document(file_path)
+            paragraphs = doc.paragraphs
+            text = ''
+            for paragraph in paragraphs:
+                text += paragraph.text
+    
+        
         splits = split_text_by_length(text, 500)
         num_splits = len(splits)
         output_texts = []
@@ -60,17 +89,24 @@ def split_pdf_text_translate(request):
 
         combined_text = '\n'.join(output_texts)
 
+        # Save combined translated text to a file
+        combined_text_file = os.path.join(output_directory, "translated_pdf.txt")
+        with open(combined_text_file, 'w', encoding='utf-8') as file:
+            file.write(combined_text)
+
         # Convert translated text to speech and save as MP3
         combined_mp3_file = os.path.join(output_directory, "translated_pdf.mp3")
         tts = gTTS(combined_text, lang=target_language)
         tts.save(combined_mp3_file)
+
         combined_mp3_file_relative_url = reverse('split_pdf_text_translate')
         combined_mp3_file_url = request.build_absolute_uri(combined_mp3_file_relative_url)
 
-
         return render(request, 'index.html', {
-        'num_splits': num_splits,
-        'combined_mp3_file': combined_mp3_file
-    })
+            'num_splits': num_splits,
+            'combined_mp3_file': combined_mp3_file,
+            'combined_text': combined_text,
+            'combined_text_file': combined_text_file,
+        })
 
     return render(request, 'index.html')
