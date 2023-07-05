@@ -1,0 +1,6 @@
+pip install django
+pip install PyPDF2 
+pip install gtts
+pip install deep_translator 
+pip install docx
+pip install moviepy
